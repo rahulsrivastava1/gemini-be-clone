@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from auth import schemas, services
-from auth.dependencies import get_current_user
 from auth.models import Users
 from database.db_connection import get_db
+from middleware.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -80,3 +80,17 @@ def change_password(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+user_router = APIRouter()
+
+
+@user_router.get("/user/me", response_model=schemas.Users)
+def read_current_user(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Get details about the currently authenticated user.
+    """
+    user = db.query(Users).filter(Users.phone == current_user["phone"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
