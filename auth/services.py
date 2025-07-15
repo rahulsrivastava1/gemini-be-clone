@@ -1,10 +1,18 @@
+import os
 import random
 from datetime import datetime, timedelta
+from typing import Optional
 
+import jwt
 from sqlalchemy.orm import Session
 
 from auth.models import OTP, Users
 from auth.schemas import UsersCreate
+
+# JWT Configuration (in production, these should be in environment variables)
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 
 def create_user(db: Session, user: UsersCreate):
@@ -50,3 +58,62 @@ def send_otp(db: Session, phone: str):
     db.refresh(db_otp)
 
     return {"otp": otp_code, "message": "OTP sent successfully"}
+
+
+def verify_otp(db: Session, phone: str, otp: str):
+    """
+    Verify OTP and return JWT token if valid
+    """
+    # Get the latest OTP for the phone number (descending order by id)
+    latest_otp = db.query(OTP).filter(OTP.phone == phone).order_by(OTP.id.desc()).first()
+
+    if not latest_otp:
+        raise ValueError("No OTP found for this phone number")
+
+        # Check if OTP has expired
+    if datetime.now() > latest_otp.expired_at:
+        raise ValueError("OTP has expired")
+
+    # Verify OTP
+    if str(latest_otp.otp) != str(otp):
+        raise ValueError("Invalid OTP")
+
+    # Get user details
+    user = db.query(Users).filter(Users.phone == phone).first()
+    if not user:
+        raise ValueError("User not found")
+
+    # Generate JWT token
+    access_token = create_access_token(data={"sub": str(user.id), "phone": user.phone})
+
+    return {"access_token": access_token, "token_type": "bearer", "message": "OTP verified successfully"}
+
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """
+    Create JWT access token
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now() + expires_delta
+    else:
+        expire = datetime.now() + timedelta(minutes=float(ACCESS_TOKEN_EXPIRE_MINUTES))
+
+    print("expire", expire)
+
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str):
+    """
+    Verify JWT token and return payload
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise ValueError("Token has expired")
+    except jwt.InvalidTokenError:
+        raise ValueError("Invalid token")

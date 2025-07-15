@@ -33,3 +33,17 @@ def send_otp(otp_request: schemas.OTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/verify-otp", response_model=schemas.JWTTokenResponse)
+def verify_otp(otp_verify_request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
+    """
+    Verify OTP and return JWT token for session
+    """
+    try:
+        result = services.verify_otp(db=db, phone=otp_verify_request.phone, otp=otp_verify_request.otp)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

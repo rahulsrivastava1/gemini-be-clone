@@ -27,6 +27,17 @@ class OTPResponse(BaseModel):
     message: str
 
 
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
+
+
+class JWTTokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    message: str
+
+
 class OTPBase(BaseModel):
     phone: str
     otp: str
