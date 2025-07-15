@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 
 from database.db_connection import Base
 
@@ -10,6 +10,8 @@ class Users(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phone = Column(String, index=True)
+    created_at = Column(DateTime, default=datetime.now)
+    is_active = Column(Boolean, default=True)
 
 
 class OTP(Base):
