@@ -19,3 +19,17 @@ def signup(user: schemas.UsersCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/send-otp", response_model=schemas.OTPResponse)
+def send_otp(otp_request: schemas.OTPRequest, db: Session = Depends(get_db)):
+    """
+    Send OTP to user's mobile number (mocked, returned in response)
+    """
+    try:
+        result = services.send_otp(db=db, phone=otp_request.phone)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

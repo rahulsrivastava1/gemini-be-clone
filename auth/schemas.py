@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -19,15 +18,20 @@ class Users(UsersBase):
         from_attributes = True
 
 
+class OTPRequest(BaseModel):
+    phone: str
+
+
+class OTPResponse(BaseModel):
+    otp: str
+    message: str
+
+
 class OTPBase(BaseModel):
     phone: str
     otp: str
     created_at: datetime
     expired_at: datetime
-
-
-class OTPCreate(OTPBase):
-    pass
 
 
 class OTP(OTPBase):
