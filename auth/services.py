@@ -121,3 +121,17 @@ def verify_token(token: str):
         raise ValueError("Token has expired")
     except jwt.InvalidTokenError:
         raise ValueError("Invalid token")
+
+
+def change_password(db: Session, user: Users):
+    """
+    Change password by generating new access token for user
+    """
+    # Check if user is active
+    if user.is_active is False:
+        raise ValueError("User is inactive")
+
+    # Generate new JWT token
+    access_token = create_access_token(data={"sub": str(user.id), "phone": user.phone})
+
+    return {"access_token": access_token, "token_type": "bearer", "message": "Password changed successfully"}

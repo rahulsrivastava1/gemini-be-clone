@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class UsersBase(BaseModel):
     phone: str
+    created_at: datetime
+    is_active: bool
 
 
 class UsersCreate(UsersBase):
@@ -54,3 +56,9 @@ class OTP(OTPBase):
 
     class Config:
         from_attributes = True
+
+
+class ChangePasswordResponse(BaseModel):
+    access_token: str
+    token_type: str
+    message: str

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from auth import schemas, services
+from auth.dependencies import get_current_user
+from auth.models import Users
 from database.db_connection import get_db
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -56,6 +58,23 @@ def verify_otp(otp_verify_request: schemas.OTPVerifyRequest, db: Session = Depen
     """
     try:
         result = services.verify_otp(db=db, phone=otp_verify_request.phone, otp=otp_verify_request.otp)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/change-password", response_model=schemas.ChangePasswordResponse)
+def change_password(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Change password by generating new access token for authenticated user
+    """
+    try:
+        result = services.change_password(db=db, user=current_user)
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
