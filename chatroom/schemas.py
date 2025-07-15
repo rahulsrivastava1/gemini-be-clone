@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 
 from pydantic import BaseModel
 
@@ -13,4 +14,12 @@ class ChatroomResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class ChatroomListResponse(BaseModel):
+    chatrooms: List[ChatroomResponse]
+    total_count: int
+
+    class Config:
+        from_attributes = True
