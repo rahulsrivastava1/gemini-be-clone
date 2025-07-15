@@ -22,6 +22,10 @@ class OTPRequest(BaseModel):
     phone: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    phone: str
+
+
 class OTPResponse(BaseModel):
     otp: str
     message: str

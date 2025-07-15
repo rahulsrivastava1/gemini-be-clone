@@ -71,12 +71,16 @@ def verify_otp(db: Session, phone: str, otp: str):
         raise ValueError("No OTP found for this phone number")
 
         # Check if OTP has expired
-    if datetime.now() > latest_otp.expired_at:
+    if latest_otp.expired_at and datetime.now() > latest_otp.expired_at:
         raise ValueError("OTP has expired")
 
     # Verify OTP
     if str(latest_otp.otp) != str(otp):
         raise ValueError("Invalid OTP")
+
+    # Invalidate OTP by setting expired_at to 5 minutes before current time
+    latest_otp.expired_at = datetime.now() - timedelta(minutes=5)
+    db.commit()
 
     # Get user details
     user = db.query(Users).filter(Users.phone == phone).first()

@@ -35,6 +35,20 @@ def send_otp(otp_request: schemas.OTPRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.post("/forgot-password", response_model=schemas.OTPResponse)
+def forgot_password(forgot_request: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Send OTP for password reset. First checks if user exists, then generates and stores OTP.
+    """
+    try:
+        result = services.send_otp(db=db, phone=forgot_request.phone)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.post("/verify-otp", response_model=schemas.JWTTokenResponse)
 def verify_otp(otp_verify_request: schemas.OTPVerifyRequest, db: Session = Depends(get_db)):
     """
