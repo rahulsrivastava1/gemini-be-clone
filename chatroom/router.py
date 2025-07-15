@@ -32,3 +32,18 @@ def get_chatrooms(current_user=Depends(get_current_user), db: Session = Depends(
     chatrooms = services.get_user_chatrooms(db, user_id=user.id)
 
     return schemas.ChatroomListResponse(chatrooms=chatrooms, total_count=len(chatrooms))
+
+
+@router.get("/chatroom/{chatroom_id}", response_model=schemas.ChatroomResponse)
+def get_chatroom(chatroom_id: int, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get detailed information about a specific chatroom"""
+    phone = current_user["phone"]
+    user = db.query(Users).filter(Users.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        chatroom = services.get_chatroom_by_id(db, chatroom_id=chatroom_id, user_id=user.id)
+        return chatroom
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chatroom not found or access denied")

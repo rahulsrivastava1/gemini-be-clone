@@ -64,3 +64,13 @@ def get_user_chatrooms(db: Session, user_id: int) -> List[Chatroom]:
         # Continue without caching - this is not a critical failure
 
     return chatrooms
+
+
+def get_chatroom_by_id(db: Session, chatroom_id: int, user_id: int) -> Chatroom:
+    """Get a specific chatroom by ID, ensuring the user has access to it"""
+    chatroom = db.query(Chatroom).filter(Chatroom.id == chatroom_id, Chatroom.user_id == user_id).first()
+
+    if not chatroom:
+        raise ValueError("Chatroom not found or access denied")
+
+    return chatroom
