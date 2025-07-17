@@ -1,15 +1,98 @@
+import asyncio
+import os
+import threading
 from datetime import datetime
 from typing import List
 
-import redis
+import aiohttp
 from sqlalchemy.orm import Session
 
 from database.cache import CacheService, get_cache_key_user_chatrooms
+from database.db_connection import SessionLocal
 
-from .models import Chatroom
+from .models import Chatroom, Message
 
-# Connect to Redis for message queue
-r = redis.Redis(host="localhost", port=6379, db=0)
+# Gemini API configuration
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+
+async def call_gemini_api_async(text: str) -> str:
+    """
+    Call Gemini API asynchronously
+    """
+    if not GEMINI_API_KEY:
+        return "[Gemini API Error: API key not configured. Please set GEMINI_API_KEY environment variable]"
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-goog-api-key": GEMINI_API_KEY,
+    }
+    data = {"contents": [{"parts": [{"text": text}]}]}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(GEMINI_API_URL, headers=headers, json=data) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return result["candidates"][0]["content"]["parts"][0]["text"]
+                else:
+                    return f"[Gemini API Error: {response.status}]"
+    except Exception as e:
+        return f"[Gemini API Error: {str(e)}]"
+
+
+async def process_message_async(message_id: int):
+    """
+    Process a message asynchronously by calling Gemini API and updating the database
+    """
+    db = SessionLocal()
+    try:
+        # Get the message
+        message = db.query(Message).filter(Message.id == message_id).first()
+        if not message:
+            return
+
+        # Update status to processing
+        message.status = "processing"
+        db.commit()
+        db.refresh(message)
+
+        # Call Gemini API with the message content
+        message_content = str(message.content)
+        gemini_response = await call_gemini_api_async(message_content)
+
+        # Update message with response
+        message.response = gemini_response
+        message.status = "completed"
+        db.commit()
+
+    except Exception as e:
+        # Update status to failed if there's an error
+        if "message" in locals() and message:
+            message.status = "failed"
+            db.commit()
+        print(f"Error processing message {message_id}: {e}")
+    finally:
+        db.close()
+
+
+def run_async_in_thread(message_id: int):
+    """
+    Run the async function in a separate thread with its own event loop
+    """
+
+    def run_async():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(process_message_async(message_id))
+        finally:
+            loop.close()
+
+    thread = threading.Thread(target=run_async)
+    thread.daemon = True
+    thread.start()
 
 
 def create_chatroom(db: Session, user_id: int) -> Chatroom:
@@ -79,8 +162,18 @@ def get_chatroom_by_id(db: Session, chatroom_id: int, user_id: int) -> Chatroom:
     return chatroom
 
 
-def enqueue_message_for_gemini(message_id: int):
+def save_message_and_process_async(db: Session, user_id: int, chatroom_id: int, content: str) -> Message:
     """
-    Enqueue the message ID for Gemini API processing.
+    Save a message to the database and start async processing in a background thread
     """
-    r.lpush("gemini_message_queue", message_id)
+    # Create message with pending status
+    db_message = Message(user_id=user_id, chatroom_id=chatroom_id, content=content, status="pending")
+    db.add(db_message)
+    db.commit()
+    db.refresh(db_message)
+
+    # Start async processing in a background thread
+    message_id = int(db_message.id)
+    run_async_in_thread(message_id)
+
+    return db_message
