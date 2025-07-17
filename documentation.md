@@ -33,3 +33,7 @@ Take token in headers, get all chatrooms associated with that user if token is v
 # Get Chatroom
 
 Take token in headers, and chatroom id -> return chatroom detail if token is valid.
+
+# Send Messgae to GEMINI
+
+Take token in headers, chatroom id, and message in body

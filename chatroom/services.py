@@ -1,10 +1,15 @@
+from datetime import datetime
 from typing import List
 
+import redis
 from sqlalchemy.orm import Session
 
 from database.cache import CacheService, get_cache_key_user_chatrooms
 
 from .models import Chatroom
+
+# Connect to Redis for message queue
+r = redis.Redis(host="localhost", port=6379, db=0)
 
 
 def create_chatroom(db: Session, user_id: int) -> Chatroom:
@@ -28,8 +33,6 @@ def get_user_chatrooms(db: Session, user_id: int) -> List[Chatroom]:
 
     if cached_data:
         # Convert cached data back to Chatroom objects
-        from datetime import datetime
-
         chatrooms = []
         for chatroom_data in cached_data:
             created_at = None
@@ -74,3 +77,10 @@ def get_chatroom_by_id(db: Session, chatroom_id: int, user_id: int) -> Chatroom:
         raise ValueError("Chatroom not found or access denied")
 
     return chatroom
+
+
+def enqueue_message_for_gemini(message_id: int):
+    """
+    Enqueue the message ID for Gemini API processing.
+    """
+    r.lpush("gemini_message_queue", message_id)
